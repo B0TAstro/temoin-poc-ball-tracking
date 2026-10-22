@@ -58,7 +58,9 @@ export function useBallTracking() {
       setMetrics((previous) => ({
         ...previous,
         roundTripMs,
+        decodeMs: response.decode_ms,
         inferenceMs: response.inference_ms,
+        detector: response.detector,
         lastConf: response.detection?.conf ?? null,
         missedFrames: totalsRef.current.missed,
         totalFrames: totalsRef.current.frames,

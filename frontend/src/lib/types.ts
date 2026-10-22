@@ -58,6 +58,11 @@ export type DetectResponse = {
   frame_id: number
   /** null = ball not seen on this frame */
   detection: BallDetection | null
+  /** which detector produced it ("fake", "yolo11n", ...) */
+  detector: string
+  /** time spent turning the JPEG back into pixels, in ms */
+  decode_ms: number
+  /** time spent in the model itself, in ms */
   inference_ms: number
   sent_at: number
 }
@@ -72,8 +77,12 @@ export type Metrics = {
   processedFps: number
   /** full round trip frontend -> server -> frontend, in ms */
   roundTripMs: number
-  /** time spent in detection server side, in ms */
+  /** server side: time spent decoding the JPEG, in ms */
+  decodeMs: number
+  /** server side: time spent in the model, in ms */
   inferenceMs: number
+  /** name of the detector answering, as the server reports it */
+  detector: string
   /** confidence of the last detection, null when the ball was not seen */
   lastConf: number | null
   /** how many frames had no ball */
@@ -86,7 +95,9 @@ export const EMPTY_METRICS: Metrics = {
   capturedFps: 0,
   processedFps: 0,
   roundTripMs: 0,
+  decodeMs: 0,
   inferenceMs: 0,
+  detector: '…',
   lastConf: null,
   missedFrames: 0,
   totalFrames: 0,

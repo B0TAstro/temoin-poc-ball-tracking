@@ -1,8 +1,12 @@
 /**
  * The performance panel of the Camera tab.
  *
- * This is the outcome of milestone 1: the round trip latency. At 15 frames per
- * second we have 66 ms per frame, so anything above that is flagged in red.
+ * Server time is split in two — decoding the JPEG and running the model — so
+ * it can be compared with the milestone 1 baseline, where the server did
+ * neither and the round trip was about 0.3 ms.
+ *
+ * At 15 frames per second we have 66 ms per frame, so anything above that is
+ * flagged in red.
  */
 
 import type { Metrics, SocketStatus } from '../lib/types'
@@ -64,12 +68,18 @@ export function MetricsPanel({ metrics, status, targetFps }: Props) {
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-200">Performances</h2>
         <span className={`text-xs font-medium ${statusColor[status]}`}>
           ● {statusLabel[status]}
         </span>
       </div>
+      <p className="mb-2 text-[11px] text-slate-500">
+        Détecteur :{' '}
+        <code className="rounded bg-slate-800 px-1 font-mono text-lime-300">
+          {metrics.detector}
+        </code>
+      </p>
 
       <Row
         label="Images capturées"
@@ -87,9 +97,13 @@ export function MetricsPanel({ metrics, status, targetFps }: Props) {
         warn={metrics.roundTripMs > budget}
       />
       <Row
-        label="Temps serveur"
-        value={`${metrics.inferenceMs.toFixed(2)} ms`}
-        hint="fausse détection"
+        label="dont décodage image"
+        value={`${metrics.decodeMs.toFixed(2)} ms`}
+      />
+      <Row
+        label="dont inférence"
+        value={`${metrics.inferenceMs.toFixed(1)} ms`}
+        warn={metrics.inferenceMs > budget}
       />
       <Row
         label="Confiance"
@@ -103,9 +117,9 @@ export function MetricsPanel({ metrics, status, targetFps }: Props) {
       />
 
       <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-        Le serveur ne décode pas encore l'image et ne charge aucun modèle :
-        l'aller-retour ci-dessus est le plancher. Le jalon 2 dira ce que le
-        décodage et l'inférence ajoutent par-dessus.
+        « Images sans balle » compte les images où le modèle n'a rien vu. Avec un
+        YOLO non ré-entraîné, c'est le chiffre qui dit s'il faut passer au
+        fine-tuning ou à TrackNet.
       </p>
     </div>
   )
