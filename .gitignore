@@ -1,0 +1,17 @@
+# Données et poids : jamais versionnés (droit à l'image, poids des fichiers)
+data/
+models/
+outputs/
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+frontend/dist/
+
+# Divers
+.DS_Store
+.env
