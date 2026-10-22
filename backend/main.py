@@ -35,6 +35,7 @@ from schemas import (
     AnalyzeRequest,
     DetectRequest,
     DetectResponse,
+    RejectedObject,
     VideoInfo,
 )
 from video import VideoAnalysis
@@ -166,11 +167,23 @@ async def ws_analyze(websocket: WebSocket) -> None:
                     # disconnects mid-analysis is noticed.
                     await asyncio.sleep(0)
 
+            result = analysis.result()
             await websocket.send_json(
                 AnalyzeDone(
                     timeline=analysis.timeline(),
                     frames_read=analysis.frames_read,
-                    frames_with_ball=analysis.frames_with_ball,
+                    frames_with_candidate=result.frames_with_candidate,
+                    frames_with_ball=result.frames_detected,
+                    frames_interpolated=result.frames_interpolated,
+                    segments=result.segments,
+                    rejected_static=[
+                        RejectedObject(
+                            x=round(cluster.x, 1),
+                            y=round(cluster.y, 1),
+                            frames=len(cluster.frames),
+                        )
+                        for cluster in result.rejected_static
+                    ],
                     elapsed_s=round(time.perf_counter() - start, 2),
                     detector=detector.name,
                     imgsz=request.imgsz,
@@ -203,8 +216,13 @@ async def ws_detect(websocket: WebSocket) -> None:
                 detection, inference_ms = None, 0.0
             else:
                 start = time.perf_counter()
-                detection = live_detector.detect(image, request.frame_id)
+                candidates = live_detector.detect(image, request.frame_id)
                 inference_ms = (time.perf_counter() - start) * 1000
+                # Live, we can only take the most confident box: deciding which
+                # candidate is the ball needs frames we do not have yet. That
+                # is exactly the weakness tracking.py fixes for the replay tab,
+                # and it is why the live tab latches onto anything round.
+                detection = candidates[0] if candidates else None
 
             response = DetectResponse(
                 frame_id=request.frame_id,

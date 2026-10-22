@@ -114,13 +114,31 @@ class AnalyzeProgress(BaseModel):
     detection: BallDetection | None
 
 
+class RejectedObject(BaseModel):
+    """Something the tracking dropped because it never moved."""
+
+    x: float
+    y: float
+    frames: int
+
+
 class AnalyzeDone(BaseModel):
     """Sent once, at the end, with the whole timeline."""
 
     kind: Literal["done"] = "done"
     timeline: Timeline
     frames_read: int
+    #: Frames where the detector proposed at least one candidate. Includes the
+    #: static objects, so this is always the most flattering number.
+    frames_with_candidate: int
+    #: Frames the tracking kept as really being the ball. The honest one.
     frames_with_ball: int
+    #: Positions filled in between two detections, guessed not measured.
+    frames_interpolated: int
+    #: How many separate runs of the ball the point was made of.
+    segments: int
+    #: What was dropped for standing still — a panel, a logo, a bag.
+    rejected_static: list[RejectedObject]
     elapsed_s: float
     detector: str
     imgsz: int

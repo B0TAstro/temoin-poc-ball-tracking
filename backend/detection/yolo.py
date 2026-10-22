@@ -72,8 +72,8 @@ class YoloDetector:
         # instead of dropping the file next to the server code.
         self.model = YOLO(str(WEIGHTS_DIR / weights))
 
-    def detect(self, image: np.ndarray, frame_id: int) -> BallDetection | None:
-        """Find the most convincing sports ball on one BGR frame."""
+    def detect(self, image: np.ndarray, frame_id: int) -> list[BallDetection]:
+        """Every sports-ball box on one BGR frame, most confident first."""
         results = self.model.predict(
             image,
             classes=[SPORTS_BALL_CLASS],  # ignore the 79 other COCO classes
@@ -85,20 +85,22 @@ class YoloDetector:
 
         boxes = results[0].boxes
         if boxes is None or len(boxes) == 0:
-            return None
+            return []
 
-        # More than one candidate happens (a round bright spot, a logo). We keep
-        # the most confident one; sorting real from false comes later, with the
-        # trajectory, since a real ball moves coherently and noise does not.
-        best = int(boxes.conf.argmax())
-        x1, y1, x2, y2 = (float(v) for v in boxes.xyxy[best])
+        candidates = []
+        for i in range(len(boxes)):
+            x1, y1, x2, y2 = (float(v) for v in boxes.xyxy[i])
+            candidates.append(
+                BallDetection(
+                    frame=frame_id,
+                    t=frame_id / ASSUMED_FPS,
+                    # The ball position is the centre of the box.
+                    x=round((x1 + x2) / 2, 1),
+                    y=round((y1 + y2) / 2, 1),
+                    conf=round(float(boxes.conf[i]), 3),
+                    interpolated=False,
+                )
+            )
 
-        return BallDetection(
-            frame=frame_id,
-            t=frame_id / ASSUMED_FPS,
-            # The ball position is the centre of the box.
-            x=round((x1 + x2) / 2, 1),
-            y=round((y1 + y2) / 2, 1),
-            conf=round(float(boxes.conf[best]), 3),
-            interpolated=False,
-        )
+        candidates.sort(key=lambda candidate: candidate.conf, reverse=True)
+        return candidates

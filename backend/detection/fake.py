@@ -22,7 +22,7 @@ MISS_RATE = 0.1
 class FakeDetector:
     name = "fake"
 
-    def detect(self, image: np.ndarray, frame_id: int) -> BallDetection | None:
+    def detect(self, image: np.ndarray, frame_id: int) -> list[BallDetection]:
         """Make up a ball position for frame `frame_id`.
 
         The ball follows a Lissajous curve: two sines with different periods on
@@ -30,7 +30,7 @@ class FakeDetector:
         more interesting to draw than a plain circle.
         """
         if random.random() < MISS_RATE:
-            return None
+            return []
 
         height, width = image.shape[:2]
 
@@ -43,11 +43,13 @@ class FakeDetector:
         # Phase advances with the frame number.
         phase = frame_id * 0.08
 
-        return BallDetection(
-            frame=frame_id,
-            t=frame_id / ASSUMED_FPS,
-            x=round(margin_x + amplitude_x * (1 + math.sin(phase * 3)), 1),
-            y=round(margin_y + amplitude_y * (1 + math.sin(phase * 2)), 1),
-            conf=round(random.uniform(0.55, 0.95), 2),
-            interpolated=False,
-        )
+        return [
+            BallDetection(
+                frame=frame_id,
+                t=frame_id / ASSUMED_FPS,
+                x=round(margin_x + amplitude_x * (1 + math.sin(phase * 3)), 1),
+                y=round(margin_y + amplitude_y * (1 + math.sin(phase * 2)), 1),
+                conf=round(random.uniform(0.55, 0.95), 2),
+                interpolated=False,
+            )
+        ]

@@ -29,8 +29,16 @@ class Detector(Protocol):
     #: Shown in the UI so you always know which detector produced a figure.
     name: str
 
-    def detect(self, image: np.ndarray, frame_id: int) -> BallDetection | None:
-        """Find the ball on one BGR frame. None when it is not seen."""
+    def detect(self, image: np.ndarray, frame_id: int) -> list[BallDetection]:
+        """Every ball candidate on one BGR frame, most confident first.
+
+        Returning a list rather than the single best box matters more than it
+        looks. On a broadcast clip, a yellow advertising panel at the edge of
+        the court was detected as a "sports ball" on 100% of frames, and it
+        outscored the real ball on 69% of them. Keeping only the best box meant
+        tracking the panel and throwing the ball away. Sorting out which
+        candidate is the ball is `tracking.py`'s job, and it needs them all.
+        """
         ...
 
 

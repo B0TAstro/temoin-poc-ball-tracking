@@ -12,13 +12,21 @@ from typing import Iterator
 
 import cv2
 
+import tracking
 from detection import Detector
+from events import find_events
 from schemas import BallDetection, Timeline
 
 
 @dataclass
 class Progress:
-    """Where we are, reported as the analysis goes."""
+    """Where we are, reported as the analysis goes.
+
+    `detection` is only the most confident candidate of that frame, shown so
+    something moves on screen while we wait. It is NOT what ends up in the
+    timeline: which candidate is really the ball is decided afterwards, once
+    the whole trajectory is known. See tracking.py.
+    """
 
     frame: int
     total: int  # 0 when the file does not say how many frames it has
@@ -52,20 +60,18 @@ class VideoAnalysis:
         self.width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
         self.height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
 
-        self._track: list[BallDetection] = []
+        # Every candidate of every frame, not just the best one. Deciding
+        # which is the ball needs the whole clip.
+        self._per_frame: list[list[BallDetection]] = []
         self._frames_read = 0
+        self._result: tracking.TrackingResult | None = None
 
     @property
     def duration_s(self) -> float:
         return self.frame_count / self.fps if self.frame_count else 0.0
 
     def run(self) -> Iterator[Progress]:
-        """Walk the whole video, yielding once per frame.
-
-        Only the frames where the ball was found end up in the track. The gaps
-        are the missing frame numbers, and they are the interesting part: they
-        are what interpolation and tracking will have to fill in later.
-        """
+        """Walk the whole video, keeping every candidate of every frame."""
         frame_id = 0
         try:
             while True:
@@ -73,21 +79,37 @@ class VideoAnalysis:
                 if not ok:
                     break
 
-                detection = self.detector.detect(image, frame_id)
-                if detection is not None:
+                candidates = self.detector.detect(image, frame_id)
+                for candidate in candidates:
                     # Overwrite the assumed timestamp with the real one.
-                    detection.t = round(frame_id / self.fps, 4)
-                    self._track.append(detection)
+                    candidate.t = round(frame_id / self.fps, 4)
+                self._per_frame.append(candidates)
 
                 self._frames_read = frame_id + 1
                 yield Progress(
                     frame=frame_id,
                     total=self.frame_count,
-                    detection=detection,
+                    detection=candidates[0] if candidates else None,
                 )
                 frame_id += 1
         finally:
             self.capture.release()
+
+    def result(self) -> tracking.TrackingResult:
+        """Run the tracking, once, and keep the answer."""
+        if self._result is None:
+            self._result = tracking.build_track(
+                self._per_frame,
+                frame_width=self.width,
+                fps=self.fps,
+                total_frames=self._frames_read or self.frame_count,
+            )
+        return self._result
+
+    @property
+    def per_frame(self) -> list[list[BallDetection]]:
+        """Raw candidates, kept for offline study."""
+        return self._per_frame
 
     def timeline(self) -> Timeline:
         """The result, in the format described in CLAUDE.md."""
@@ -97,9 +119,9 @@ class VideoAnalysis:
             video=self.path.name,
             fps=round(self.fps, 3),
             duration_s=round(frames / self.fps, 3) if self.fps else 0.0,
-            ball_track=self._track,
+            ball_track=self.result().track,
             court_lines=[],  # milestone 5
-            events=[],  # milestone 4: hits, bounces, end of point
+            events=find_events(self.result().track, self.fps),
         )
 
     @property
@@ -108,4 +130,5 @@ class VideoAnalysis:
 
     @property
     def frames_with_ball(self) -> int:
-        return len(self._track)
+        """Frames the tracking actually kept, interpolation excluded."""
+        return self.result().frames_detected
