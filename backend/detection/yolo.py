@@ -27,6 +27,12 @@ SPORTS_BALL_CLASS = 32
 #: weak detections and judge them than have the model hide them from us.
 DEFAULT_CONF = 0.25
 
+#: The size YOLO works at internally. The frame is letterboxed to a square of
+#: this side before going through the network, so this is what really decides
+#: how many pixels a far-away ball gets. Probably the single setting that
+#: matters most for a tennis ball; 640 is the Ultralytics default.
+DEFAULT_IMGSZ = 640
+
 #: Where weights live. `models/` is git-ignored, see CLAUDE.md.
 WEIGHTS_DIR = Path(__file__).resolve().parents[2] / "models"
 
@@ -53,10 +59,12 @@ class YoloDetector:
         self,
         weights: str = "yolo11n.pt",
         conf: float = DEFAULT_CONF,
+        imgsz: int = DEFAULT_IMGSZ,
         device: str | None = None,
     ) -> None:
         self.name = Path(weights).stem
         self.conf = conf
+        self.imgsz = imgsz
         self.device = device or os.environ.get("DEVICE") or pick_device()
 
         WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -70,6 +78,7 @@ class YoloDetector:
             image,
             classes=[SPORTS_BALL_CLASS],  # ignore the 79 other COCO classes
             conf=self.conf,
+            imgsz=self.imgsz,
             verbose=False,
             device=self.device,
         )

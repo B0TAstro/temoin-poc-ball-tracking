@@ -77,3 +77,57 @@ class DetectResponse(BaseModel):
     decode_ms: float  # time spent turning the JPEG back into pixels
     inference_ms: float  # time spent in the model itself
     sent_at: float  # echoed back so the frontend can compute the round trip
+
+
+# --- Replay tab: analysing a video file ---
+
+
+class VideoInfo(BaseModel):
+    """One video available in `data/videos/`."""
+
+    name: str
+    size_bytes: int
+    fps: float
+    frames: int
+    width: int
+    height: int
+    duration_s: float
+
+
+class AnalyzeRequest(BaseModel):
+    """Analyse one video, start to finish."""
+
+    video: str
+    #: None keeps whichever detector the server booted with.
+    detector: str | None = None
+    #: The size the model works at. 640 is the live default; the replay tab is
+    #: not in a hurry and a tennis ball is small, so it asks for more.
+    imgsz: int = 1280
+
+
+class AnalyzeProgress(BaseModel):
+    """Sent while the analysis runs, every few frames."""
+
+    kind: Literal["progress"] = "progress"
+    frame: int
+    total: int  # 0 when the file does not say how long it is
+    detection: BallDetection | None
+
+
+class AnalyzeDone(BaseModel):
+    """Sent once, at the end, with the whole timeline."""
+
+    kind: Literal["done"] = "done"
+    timeline: Timeline
+    frames_read: int
+    frames_with_ball: int
+    elapsed_s: float
+    detector: str
+    imgsz: int
+
+
+class AnalyzeError(BaseModel):
+    """Sent instead of a result when the analysis could not run."""
+
+    kind: Literal["error"] = "error"
+    message: str

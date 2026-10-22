@@ -34,16 +34,21 @@ class Detector(Protocol):
         ...
 
 
-def load_detector(name: str) -> Detector:
-    """Build a detector by name. Imports lazily so `fake` needs no PyTorch."""
+def load_detector(name: str, imgsz: int | None = None) -> Detector:
+    """Build a detector by name. Imports lazily so `fake` needs no PyTorch.
+
+    `imgsz` only means something to a real model: it is the size the frame is
+    scaled to before going through the network. The live tab keeps it small to
+    stay fast, the replay tab can afford more.
+    """
     if name == "fake":
         from detection.fake import FakeDetector
 
         return FakeDetector()
 
     if name.startswith("yolo"):
-        from detection.yolo import YoloDetector
+        from detection.yolo import DEFAULT_IMGSZ, YoloDetector
 
-        return YoloDetector(weights=f"{name}.pt")
+        return YoloDetector(weights=f"{name}.pt", imgsz=imgsz or DEFAULT_IMGSZ)
 
     raise ValueError(f"unknown detector {name!r} (try 'fake' or 'yolo11n')")

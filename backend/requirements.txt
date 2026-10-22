@@ -2,6 +2,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
+python-multipart==0.0.20  # file upload in the Replay tab
 
 # Vision. Pulls PyTorch and OpenCV with it (~263 MB download, ~1 GB on disk).
 # Stays on this machine: what ships to a phone is the exported weights file
