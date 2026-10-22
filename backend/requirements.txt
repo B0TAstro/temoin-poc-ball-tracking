@@ -1,0 +1,5 @@
+# Milestone 1: the bare minimum to run the server.
+# No ultralytics or opencv until we have a real model (milestone 2).
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
