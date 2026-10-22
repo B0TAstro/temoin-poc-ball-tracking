@@ -1,5 +1,9 @@
-# Milestone 1: the bare minimum to run the server.
-# No ultralytics or opencv until we have a real model (milestone 2).
+# Web server
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
+
+# Vision. Pulls PyTorch and OpenCV with it (~263 MB download, ~1 GB on disk).
+# Stays on this machine: what ships to a phone is the exported weights file
+# (yolo11n is about 6 MB), run by Core ML / TFLite / ONNX Runtime.
+ultralytics==8.4.183

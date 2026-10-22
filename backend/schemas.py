@@ -73,5 +73,7 @@ class DetectResponse(BaseModel):
 
     frame_id: int
     detection: BallDetection | None  # None = ball not seen on this frame
-    inference_ms: float  # time spent in detection, server side
+    detector: str  # which detector produced it ("fake", "yolo11n", ...)
+    decode_ms: float  # time spent turning the JPEG back into pixels
+    inference_ms: float  # time spent in the model itself
     sent_at: float  # echoed back so the frontend can compute the round trip

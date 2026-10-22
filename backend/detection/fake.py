@@ -1,54 +1,53 @@
 """
 The fake detector of milestone 1.
 
-It loads no model and does not even look at the image: it makes up a ball
-position from the frame number. The goal is not to detect anything, it is to
-check that the whole chain works (camera -> server -> drawing) and to measure
-what the round trip costs.
-
-This is the ONLY file to replace in milestone 2, when a real YOLO goes in.
+It loads no model and does not look at the image: it makes up a ball position
+from the frame number. Kept after milestone 2 on purpose, as the latency
+baseline — run the app with DETECTOR=fake to measure the chain without a model.
 """
 
 import math
 import random
 
+import numpy as np
+
+from detection import ASSUMED_FPS
 from schemas import BallDetection
 
-# One frame in ten with no ball: this forces the frontend to handle gaps from
-# the start, since gaps are the real tracking problem (interpolation, Kalman).
+# One frame in ten with no ball: this forces the frontend to handle gaps, since
+# gaps are the real tracking problem (interpolation, Kalman).
 MISS_RATE = 0.1
 
-# Assumed frame rate, only used to compute `t`.
-ASSUMED_FPS = 15.0
 
+class FakeDetector:
+    name = "fake"
 
-def detect(width: int, height: int, frame_id: int) -> BallDetection | None:
-    """Make up a ball position for frame `frame_id`.
+    def detect(self, image: np.ndarray, frame_id: int) -> BallDetection | None:
+        """Make up a ball position for frame `frame_id`.
 
-    The ball follows a Lissajous curve: two sines with different periods on x
-    and y. That gives a motion which does not repeat immediately, which is more
-    interesting to draw than a plain circle.
-    """
-    if random.random() < MISS_RATE:
-        return None
+        The ball follows a Lissajous curve: two sines with different periods on
+        x and y. That gives a motion which does not repeat immediately, which is
+        more interesting to draw than a plain circle.
+        """
+        if random.random() < MISS_RATE:
+            return None
 
-    # Keep a 10% margin on each edge so the ball stays visible.
-    margin_x = width * 0.1
-    margin_y = height * 0.1
-    amplitude_x = (width - 2 * margin_x) / 2
-    amplitude_y = (height - 2 * margin_y) / 2
+        height, width = image.shape[:2]
 
-    # Phase advances with the frame number.
-    phase = frame_id * 0.08
+        # Keep a 10% margin on each edge so the ball stays visible.
+        margin_x = width * 0.1
+        margin_y = height * 0.1
+        amplitude_x = (width - 2 * margin_x) / 2
+        amplitude_y = (height - 2 * margin_y) / 2
 
-    x = margin_x + amplitude_x * (1 + math.sin(phase * 3))
-    y = margin_y + amplitude_y * (1 + math.sin(phase * 2))
+        # Phase advances with the frame number.
+        phase = frame_id * 0.08
 
-    return BallDetection(
-        frame=frame_id,
-        t=frame_id / ASSUMED_FPS,
-        x=round(x, 1),
-        y=round(y, 1),
-        conf=round(random.uniform(0.55, 0.95), 2),
-        interpolated=False,
-    )
+        return BallDetection(
+            frame=frame_id,
+            t=frame_id / ASSUMED_FPS,
+            x=round(margin_x + amplitude_x * (1 + math.sin(phase * 3)), 1),
+            y=round(margin_y + amplitude_y * (1 + math.sin(phase * 2)), 1),
+            conf=round(random.uniform(0.55, 0.95), 2),
+            interpolated=False,
+        )
