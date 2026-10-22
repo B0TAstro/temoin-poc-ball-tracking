@@ -25,16 +25,22 @@ from fastapi import FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisc
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import court
 import frames
 import videos_dir
 from detection import DEFAULT_DETECTOR, Detector, load_detector
+from events import refine_bounce, speed_around
 from schemas import (
     AnalyzeDone,
     AnalyzeError,
     AnalyzeProgress,
     AnalyzeRequest,
+    CourtLine,
     DetectRequest,
     DetectResponse,
+    LineCallOut,
+    LineCallsRequest,
+    LineCallsResponse,
     RejectedObject,
     VideoInfo,
 )
@@ -126,6 +132,68 @@ def analysis_detector(name: str, imgsz: int) -> Detector:
     if key not in _analysis_detectors:
         _analysis_detectors[key] = load_detector(name, imgsz=imgsz)
     return _analysis_detectors[key]
+
+
+@app.post("/api/line-calls")
+def line_calls(request: LineCallsRequest) -> LineCallsResponse:
+    """Project the court, then read each bounce on it.
+
+    Separate from the analysis on purpose: the trajectory does not change when
+    the calibration does, so clicking the corners again costs a request, not
+    another two minutes of inference.
+    """
+    try:
+        matrix = court.homography_from_corners(request.corners)
+    except court.CalibrationError as caught:
+        raise HTTPException(status_code=422, detail=str(caught))
+
+    calls: list[LineCallOut] = []
+    for event in request.events:
+        if event.type != "bounce":
+            continue
+
+        # Pin the bounce down between frames if the trajectory allows it.
+        refined = refine_bounce(request.track, event.frame)
+        if refined is not None:
+            frame, image_x, image_y = refined
+        elif event.x is not None and event.y is not None:
+            frame, image_x, image_y = float(event.frame), event.x, event.y
+        else:
+            continue
+
+        call = court.call_bounce(
+            matrix,
+            image_x=image_x,
+            image_y=image_y,
+            frame=frame,
+            fps=request.fps,
+            speed_px_per_frame=speed_around(request.track, event.frame),
+            refined=refined is not None,
+            singles=request.singles,
+        )
+        calls.append(
+            LineCallOut(
+                frame=call.frame,
+                t=call.t,
+                court_x=call.court_x,
+                court_y=call.court_y,
+                margin_m=call.margin_m,
+                nearest_line=call.nearest_line,
+                verdict=call.verdict,
+                uncertainty_m=call.uncertainty_m,
+                refined=call.refined,
+                image_x=round(image_x, 1),
+                image_y=round(image_y, 1),
+            )
+        )
+
+    return LineCallsResponse(
+        court_lines=[
+            CourtLine(name=name, points=points)
+            for name, points in court.project_lines(matrix)
+        ],
+        calls=calls,
+    )
 
 
 @app.websocket("/ws/analyze")

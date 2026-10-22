@@ -5,22 +5,30 @@
  * slow motion with the trajectory drawn on top, a timeline showing where the
  * ball was really found, and the bounces and hits read off the path.
  *
- * What is still missing to answer "in or out": the court lines and the
- * homography that projects a bounce onto the real court. That is milestone 5.
+ * Once the court is calibrated — four clicked corners — each bounce is read on
+ * the court plane and reported with its margin to the nearest line AND the
+ * uncertainty on that margin. Témoin never decides a point: when the margin is
+ * smaller than the uncertainty, the answer is "trop juste".
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AnalysisSettings } from '../components/AnalysisSettings'
 import { ComingSoon } from '../components/ComingSoon'
+import { CourtPanel } from '../components/CourtPanel'
 import { EventList } from '../components/EventList'
 import { TrackTimeline } from '../components/TrackTimeline'
 import { VideoPicker } from '../components/VideoPicker'
 import { VideoPlayer } from '../components/VideoPlayer'
 import { listVideos, uploadVideo, videoUrl } from '../lib/api'
-import type { Timeline, VideoInfo } from '../lib/types'
+import type { BallDetection, Event, Timeline, VideoInfo } from '../lib/types'
+import { CORNER_LABELS, useCourtCalibration } from '../lib/useCourtCalibration'
 import { useReplayPlayer } from '../lib/useReplayPlayer'
 import { useVideoAnalysis } from '../lib/useVideoAnalysis'
+
+/** Stable empty arrays, so the calibration effect does not refire every render. */
+const NO_TRACK: BallDetection[] = []
+const NO_EVENTS: Event[] = []
 
 export function ReplayTab() {
   const [videos, setVideos] = useState<VideoInfo[]>([])
@@ -38,7 +46,19 @@ export function ReplayTab() {
     return state.result.timeline.video === selected ? state.result.timeline : null
   }, [state, selected])
 
-  const player = useReplayPlayer({ timeline })
+  const court = useCourtCalibration({
+    video: selected,
+    fps: timeline?.fps ?? 30,
+    track: timeline?.ball_track ?? NO_TRACK,
+    events: timeline?.events ?? NO_EVENTS,
+  })
+
+  const player = useReplayPlayer({
+    timeline,
+    courtLines: court.courtLines,
+    calls: court.calls,
+    corners: court.corners,
+  })
 
   const refresh = useCallback(async () => {
     try {
@@ -194,6 +214,19 @@ export function ReplayTab() {
           </section>
         )}
 
+        <CourtPanel
+          cornersPlaced={court.corners.length}
+          calibrating={court.calibrating}
+          singles={court.singles}
+          calls={court.calls}
+          error={court.error}
+          currentFrame={player.currentFrame}
+          onStart={court.start}
+          onReset={court.reset}
+          onSingles={court.setSingles}
+          onSeek={player.seekToFrame}
+        />
+
         {timeline && (
           <section className="space-y-2">
             <h2 className="text-sm font-semibold text-slate-200">Événements</h2>
@@ -222,6 +255,11 @@ export function ReplayTab() {
           onStep={player.step}
           onSpeed={player.setSpeed}
           onLoaded={player.reset}
+          calibrating={court.calibrating}
+          cornerPrompt={
+            court.calibrating ? CORNER_LABELS[court.corners.length] : null
+          }
+          onPickPoint={court.addCorner}
         />
 
         <div className="space-y-2">
@@ -241,9 +279,10 @@ export function ReplayTab() {
             currentFrame={player.currentFrame}
             onSeek={player.seekToFrame}
           />
-          <ComingSoon milestone="jalon 5">
-            Les lignes du court et l'homographie, pour projeter un rebond sur le
-            plan du court et enfin répondre « dedans ou dehors ».
+          <ComingSoon milestone="la suite">
+            La détection automatique des lignes, pour ne plus avoir à cliquer
+            les coins. Le calage au clic sert alors de vérité terrain pour la
+            juger.
           </ComingSoon>
         </div>
       </section>

@@ -8,17 +8,42 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { TRAIL_LENGTH, clear, drawTrack, type TrailPoint } from './draw'
-import type { BallDetection, Timeline } from './types'
+import {
+  TRAIL_LENGTH,
+  clear,
+  drawCalls,
+  drawCorners,
+  drawCourt,
+  drawTrack,
+  type TrailPoint,
+} from './draw'
+import type {
+  BallDetection,
+  CourtLine,
+  ImagePoint,
+  LineCall,
+  Timeline,
+} from './types'
 
 /** Playback speeds offered, slow motion first — this is a replay tool. */
 export const SPEEDS = [0.1, 0.25, 0.5, 1] as const
 
 type Options = {
   timeline: Timeline | null
+  /** The court model projected into the picture, once calibrated. */
+  courtLines?: CourtLine[]
+  /** Bounces read on the court plane. */
+  calls?: LineCall[]
+  /** Corners clicked so far, drawn while calibrating. */
+  corners?: ImagePoint[]
 }
 
-export function useReplayPlayer({ timeline }: Options) {
+export function useReplayPlayer({
+  timeline,
+  courtLines = [],
+  calls = [],
+  corners = [],
+}: Options) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const overlayRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -56,12 +81,18 @@ export function useReplayPlayer({ timeline }: Options) {
       canvas.height = video.videoHeight
     }
 
+    // drawTrack clears first, so the court has to go on top of it. Drawn in
+    // this order: trajectory, then court, then the clicked corners, then the
+    // bounces, so a line call is never hidden by anything.
     const trail: TrailPoint[] = []
     for (let f = frame - TRAIL_LENGTH + 1; f <= frame; f++) {
       trail.push(f < 0 ? null : (track.get(f) ?? null))
     }
     drawTrack(ctx, trail)
-  }, [track])
+    drawCourt(ctx, courtLines)
+    drawCorners(ctx, corners)
+    drawCalls(ctx, calls, frame)
+  }, [track, courtLines, corners, calls])
 
   /** Follow the video while it plays, redrawing as the frame changes. */
   const follow = useCallback(
@@ -89,6 +120,11 @@ export function useReplayPlayer({ timeline }: Options) {
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = speed
   }, [speed, timeline])
+
+  // A new calibration must show up without waiting for the next frame.
+  useEffect(() => {
+    if (!isPlaying) draw(currentFrame)
+  }, [draw, currentFrame, isPlaying])
 
   const play = useCallback(async () => {
     const video = videoRef.current

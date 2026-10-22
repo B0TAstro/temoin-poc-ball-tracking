@@ -139,3 +139,130 @@ def _point_end(track: list[BallDetection], fps: float) -> Event | None:
         # ended". It is a hint for the timeline, nothing more.
         conf=0.4,
     )
+
+
+# --- Where exactly did it land? ---
+
+#: How many frames either side of a turning point to use when pinning the
+#: bounce down. Few enough that the flight is nearly straight over the window.
+REFINE_WINDOW = 5
+
+
+def _fit_line(points: list[tuple[float, float]]) -> tuple[float, float] | None:
+    """Least-squares fit of v = slope * f + intercept."""
+    if len(points) < 2:
+        return None
+    n = len(points)
+    mean_f = sum(f for f, _ in points) / n
+    mean_v = sum(v for _, v in points) / n
+    numerator = sum((f - mean_f) * (v - mean_v) for f, v in points)
+    denominator = sum((f - mean_f) ** 2 for f, _ in points)
+    if abs(denominator) < 1e-9:
+        return None
+    slope = numerator / denominator
+    return slope, mean_v - slope * mean_f
+
+
+def refine_bounce(
+    track: list[BallDetection], frame: int
+) -> tuple[float, float, float] | None:
+    """Pin a bounce down to better than one frame: returns (frame, x, y).
+
+    Why not just take the frame where y is highest: at 60 images per second a
+    ball travelling 100 km/h moves 46 cm between two frames, so the frame alone
+    puts the landing spot within half a metre. On a line call that is useless.
+
+    Why not fit one parabola through the bounce either: a bounce is not a smooth
+    turning point, it is a corner. The ball comes down along one arc and leaves
+    along another, and the two meet at an angle. Fitting a single curve through
+    the corner rounds it off and moves the landing spot.
+
+    So: fit the descent, fit the climb, and intersect them. The crossing is the
+    moment of contact, and it falls between two frames, which is the point.
+    Only measured positions are used — interpolated ones are already guesses.
+    """
+    index = next((i for i, point in enumerate(track) if point.frame == frame), None)
+    if index is None:
+        return None
+
+    before: list[tuple[float, float]] = []
+    after: list[tuple[float, float]] = []
+    for offset in range(1, REFINE_WINDOW + 1):
+        if index - offset >= 0:
+            point = track[index - offset]
+            if not point.interpolated:
+                before.append((float(point.frame), point.y))
+        if index + offset < len(track):
+            point = track[index + offset]
+            if not point.interpolated:
+                after.append((float(point.frame), point.y))
+
+    centre = track[index]
+    if not centre.interpolated:
+        before.append((float(centre.frame), centre.y))
+        after.append((float(centre.frame), centre.y))
+
+    descent = _fit_line(before)
+    climb = _fit_line(after)
+    if descent is None or climb is None:
+        return None
+
+    slope_down, intercept_down = descent
+    slope_up, intercept_up = climb
+    # Coming down then going up means the slopes must have opposite signs; if
+    # they do not, this is not a bounce shape and refining would invent a point.
+    if slope_down <= 0 or slope_up >= 0:
+        return None
+
+    if abs(slope_down - slope_up) < 1e-6:
+        return None
+    crossing = (intercept_up - intercept_down) / (slope_down - slope_up)
+
+    # Refuse a crossing that lands outside the window: that means the two fits
+    # disagree, not that the ball bounced over there.
+    if abs(crossing - frame) > REFINE_WINDOW:
+        return None
+
+    y_at = slope_down * crossing + intercept_down
+
+    # x moves at a near-constant rate through a bounce, so one fit does.
+    horizontal = _fit_line(
+        [
+            (float(point.frame), point.x)
+            for point in track[max(index - REFINE_WINDOW, 0) : index + REFINE_WINDOW + 1]
+            if not point.interpolated
+        ]
+    )
+    if horizontal is None:
+        return None
+    slope_x, intercept_x = horizontal
+
+    return crossing, slope_x * crossing + intercept_x, y_at
+
+
+def speed_around(track: list[BallDetection], frame: int, window: int = 3) -> float:
+    """The ball's speed in pixels per frame around `frame`.
+
+    Used to turn the time uncertainty of a bounce into a distance on the court:
+    a fast ball is placed less precisely than a slow one, for the same frame
+    rate. Interpolated positions are skipped, as they carry no new information.
+    """
+    index = next((i for i, point in enumerate(track) if point.frame == frame), None)
+    if index is None:
+        return 0.0
+
+    measured = [
+        point
+        for point in track[max(index - window, 0) : index + window + 1]
+        if not point.interpolated
+    ]
+    if len(measured) < 2:
+        return 0.0
+
+    first, last = measured[0], measured[-1]
+    elapsed = last.frame - first.frame
+    if elapsed <= 0:
+        return 0.0
+
+    distance = ((last.x - first.x) ** 2 + (last.y - first.y) ** 2) ** 0.5
+    return distance / elapsed

@@ -7,6 +7,7 @@
 
 import type { RefObject } from 'react'
 
+import type { ImagePoint } from '../lib/types'
 import { SPEEDS } from '../lib/useReplayPlayer'
 
 type Props = {
@@ -23,6 +24,11 @@ type Props = {
   onStep: (delta: number) => void
   onSpeed: (speed: number) => void
   onLoaded: () => void
+  /** When true, clicking the picture adds a court corner instead of nothing. */
+  calibrating?: boolean
+  /** Which corner is being asked for, shown over the picture. */
+  cornerPrompt?: string | null
+  onPickPoint?: (point: ImagePoint) => void
 }
 
 function Button({
@@ -59,7 +65,27 @@ export function VideoPlayer({
   onStep,
   onSpeed,
   onLoaded,
+  calibrating = false,
+  cornerPrompt = null,
+  onPickPoint,
 }: Props) {
+  /** Turn a click on the displayed picture into a position in source pixels.
+   *
+   * The video is scaled to fit its box, so a click has to be scaled back by
+   * the same ratio. Everything downstream — detections, court model, line
+   * calls — works in the source frame's own pixels, and mixing the two
+   * coordinate systems would put the court in the wrong place.
+   */
+  const handlePick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const video = videoRef.current
+    if (!video || !onPickPoint || !video.videoWidth) return
+    const bounds = video.getBoundingClientRect()
+    onPickPoint({
+      x: ((event.clientX - bounds.left) / bounds.width) * video.videoWidth,
+      y: ((event.clientY - bounds.top) / bounds.height) * video.videoHeight,
+    })
+  }
+
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-lg border border-slate-800 bg-black">
@@ -81,6 +107,20 @@ export function VideoPlayer({
           ref={overlayRef}
           className="pointer-events-none absolute inset-0 h-full w-full"
         />
+
+        {calibrating && (
+          <div
+            onClick={handlePick}
+            className="absolute inset-0 cursor-crosshair"
+            title="Clique le coin demandé"
+          >
+            {cornerPrompt && (
+              <span className="absolute left-1/2 top-3 -translate-x-1/2 rounded-md bg-orange-400 px-3 py-1 text-xs font-semibold text-slate-950">
+                Clique le {cornerPrompt}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

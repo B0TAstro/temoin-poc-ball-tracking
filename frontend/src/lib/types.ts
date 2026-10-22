@@ -165,3 +165,32 @@ export type AnalyzeError = {
 }
 
 export type AnalyzeMessage = AnalyzeProgress | AnalyzeDone | AnalyzeError
+
+// --- Court calibration and line calls ---
+
+/** A point clicked on the video, in the source frame's own pixels. */
+export type ImagePoint = { x: number; y: number }
+
+/** One bounce, read on the court plane. */
+export type LineCall = {
+  /** fractional: the bounce falls between two frames */
+  frame: number
+  t: number
+  /** metres across the court, 0 at the centre */
+  court_x: number
+  /** metres along the court, 0 at the net */
+  court_y: number
+  /** positive inside, negative outside */
+  margin_m: number
+  nearest_line: string
+  verdict: 'in' | 'out' | 'too_close'
+  uncertainty_m: number
+  refined: boolean
+  image_x: number
+  image_y: number
+}
+
+export type LineCallsResponse = {
+  court_lines: CourtLine[]
+  calls: LineCall[]
+}

@@ -1,6 +1,11 @@
 /** Where the server is, and the plain HTTP calls we make to it. */
 
-import type { VideoInfo } from './types'
+import type {
+  BallDetection,
+  Event,
+  LineCallsResponse,
+  VideoInfo,
+} from './types'
 
 export const API_BASE = 'http://localhost:8000'
 export const WS_BASE = 'ws://localhost:8000'
@@ -26,6 +31,32 @@ export async function uploadVideo(file: File): Promise<VideoInfo> {
   if (!response.ok) {
     const detail = await response.json().catch(() => null)
     throw new Error(detail?.detail ?? `envoi : HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+/**
+ * Project the court from four clicked corners, and read the bounces on it.
+ *
+ * Separate from the analysis on purpose: the trajectory does not change when
+ * the calibration does, so clicking the corners again costs one request, not
+ * another two minutes of inference.
+ */
+export async function fetchLineCalls(payload: {
+  corners: [number, number][]
+  singles: boolean
+  fps: number
+  track: BallDetection[]
+  events: Event[]
+}): Promise<LineCallsResponse> {
+  const response = await fetch(`${API_BASE}/api/line-calls`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null)
+    throw new Error(detail?.detail ?? `calibrage : HTTP ${response.status}`)
   }
   return response.json()
 }

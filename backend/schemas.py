@@ -149,3 +149,50 @@ class AnalyzeError(BaseModel):
 
     kind: Literal["error"] = "error"
     message: str
+
+
+# --- Court calibration and line calls ---
+
+
+class LineCallsRequest(BaseModel):
+    """Read the bounces of a timeline on the court plane.
+
+    The frontend sends back the timeline it already holds, so the server keeps
+    no session state and recalibrating costs nothing: click four corners again
+    and ask again, no re-analysis.
+    """
+
+    #: The four outer court corners in image pixels, in this order:
+    #: near-left, near-right, far-right, far-left.
+    corners: list[tuple[float, float]]
+    #: Singles court by default; set false to judge against the tramlines.
+    singles: bool = True
+    fps: float
+    track: list[BallDetection]
+    events: list[Event]
+
+
+class LineCallOut(BaseModel):
+    """One bounce, read on the court."""
+
+    frame: float  # fractional: the bounce falls between two frames
+    t: float
+    court_x: float  # metres across the court, 0 at the centre
+    court_y: float  # metres along the court, 0 at the net
+    margin_m: float  # positive inside, negative outside
+    nearest_line: str
+    verdict: Literal["in", "out", "too_close"]
+    uncertainty_m: float
+    refined: bool
+    #: Where the refined bounce sits in the picture, for drawing it.
+    image_x: float
+    image_y: float
+
+
+class LineCallsResponse(BaseModel):
+    """What the calibration gives: the court drawn back, and the calls."""
+
+    #: Every court line projected into the image, to check the calibration by
+    #: eye. If these land on the painted lines, the corners were right.
+    court_lines: list[CourtLine]
+    calls: list[LineCallOut]
