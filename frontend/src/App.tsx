@@ -1,4 +1,4 @@
-/** La coquille de l'application : un en-tête et les trois onglets. */
+/** The application shell: a header and the three tabs. */
 
 import { useState } from 'react'
 

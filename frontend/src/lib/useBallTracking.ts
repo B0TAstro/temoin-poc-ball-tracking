@@ -1,8 +1,8 @@
 /**
- * Toute la logique de l'onglet Camera : ouvrir la caméra, extraire les images,
- * les envoyer au serveur, dessiner les détections, compter les performances.
+ * All the logic of the Camera tab: open the camera, grab frames, send them to
+ * the server, draw the detections, count the performance figures.
  *
- * Les composants ne font que de l'affichage ; tout ce qui bouge est ici.
+ * Components only display; everything that moves lives here.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -11,44 +11,44 @@ import { TRAIL_LENGTH, clear, drawTrack, type TrailPoint } from './draw'
 import { EMPTY_METRICS, type DetectResponse, type Metrics } from './types'
 import { useDetectionSocket } from './useDetectionSocket'
 
-/** Largeur à laquelle on réduit l'image avant de l'envoyer. */
+/** The width we scale frames down to before sending them. */
 export const CAPTURE_WIDTH = 640
 
-/** Cadence visée. Volontairement basse : on mesure, on n'optimise pas encore. */
+/** Target frame rate. Deliberately low: we measure, we do not optimise yet. */
 export const TARGET_FPS = 15
 
-/** Qualité du JPEG. Compromis entre poids sur le réseau et lisibilité. */
+/** JPEG quality. A trade-off between network weight and readability. */
 const JPEG_QUALITY = 0.6
 
 export function useBallTracking() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null) // caché
+  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null) // hidden
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null) // visible
 
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [metrics, setMetrics] = useState<Metrics>(EMPTY_METRICS)
 
-  // La trajectoire récente. Dans une ref : elle change à chaque image, on ne
-  // veut pas un rendu React à chaque fois, le dessin se fait dans le canvas.
+  // The recent trail. In a ref: it changes on every frame and we do not want a
+  // React render each time, the drawing happens in the canvas.
   const trailRef = useRef<TrailPoint[]>([])
   const frameIdRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const lastCaptureRef = useRef(0)
 
-  // Compteurs pour les images par seconde, remis à zéro chaque seconde.
+  // Counters for frames per second, reset every second.
   const countersRef = useRef({ captured: 0, processed: 0, since: 0 })
-  // Totaux, qui eux ne sont pas remis à zéro.
+  // Totals, which are not reset.
   const totalsRef = useRef({ frames: 0, missed: 0 })
 
-  /** Appelé à chaque réponse du serveur : on dessine et on met à jour les chiffres. */
+  /** Called on every server answer: draw, then refresh the figures. */
   const handleDetection = useCallback(
     (response: DetectResponse, roundTripMs: number) => {
       countersRef.current.processed++
       totalsRef.current.frames++
       if (!response.detection) totalsRef.current.missed++
 
-      // On empile la position (ou le trou) et on garde les N dernières.
+      // Push the position (or the gap) and keep the last N.
       const trail = [...trailRef.current, response.detection].slice(-TRAIL_LENGTH)
       trailRef.current = trail
 
@@ -69,14 +69,14 @@ export function useBallTracking() {
 
   const { status, send } = useDetectionSocket({ onDetection: handleDetection })
 
-  /** La boucle de capture : une image toutes les 1/TARGET_FPS secondes au plus. */
-  // Fonction nommée (`loop`) pour qu'elle puisse se replanifier elle-même
-  // sans se référencer avant d'être initialisée.
+  /** The capture loop: at most one frame every 1/TARGET_FPS seconds. */
+  // A named function (`loop`) so it can reschedule itself without referencing
+  // its own binding before initialisation.
   const captureLoop = useCallback(
     function loop(now: number) {
       rafRef.current = requestAnimationFrame(loop)
 
-      // Mise à jour des images par seconde, une fois par seconde.
+      // Refresh the frames-per-second figures, once a second.
       const counters = countersRef.current
       if (now - counters.since >= 1000) {
         const elapsed = (now - counters.since) / 1000
@@ -95,7 +95,7 @@ export function useBallTracking() {
       const canvas = captureCanvasRef.current
       if (!video || !canvas || video.readyState < 2) return
 
-      // On fixe les dimensions de capture à partir du format réel de la caméra.
+      // Set the capture size from the camera's actual aspect ratio.
       const ratio = video.videoHeight / video.videoWidth
       const width = CAPTURE_WIDTH
       const height = Math.round(CAPTURE_WIDTH * ratio)
@@ -120,8 +120,8 @@ export function useBallTracking() {
         height,
       })
 
-      // Si l'envoi a été refusé (réponse précédente pas encore revenue), on ne
-      // compte pas l'image : la cadence affichée reste honnête.
+      // If the send was refused (previous answer not back yet) we do not count
+      // the frame: the displayed rate stays honest.
       if (sent) {
         frameIdRef.current++
         counters.captured++
@@ -143,7 +143,7 @@ export function useBallTracking() {
       video.srcObject = stream
       await video.play()
 
-      // Remise à zéro de tous les compteurs pour cette session.
+      // Reset every counter for this session.
       trailRef.current = []
       frameIdRef.current = 0
       totalsRef.current = { frames: 0, missed: 0 }
@@ -154,7 +154,8 @@ export function useBallTracking() {
       setIsRunning(true)
       rafRef.current = requestAnimationFrame(captureLoop)
     } catch (caught) {
-      // Refus de l'autorisation, ou pas de caméra disponible.
+      // Permission denied, or no camera available.
+      // Message shown to the user, hence in French.
       setError(
         caught instanceof Error ? caught.message : "la caméra n'a pas pu s'ouvrir",
       )
@@ -176,7 +177,7 @@ export function useBallTracking() {
     setIsRunning(false)
   }, [])
 
-  // Si on quitte l'onglet, on relâche la caméra : pas de voyant qui reste allumé.
+  // Leaving the tab releases the camera: no indicator light left on.
   useEffect(() => stop, [stop])
 
   return {

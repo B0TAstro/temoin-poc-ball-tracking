@@ -1,8 +1,8 @@
 /**
- * Onglet Camera : le suivi en direct.
+ * Camera tab: live tracking.
  *
- * Jalon 1 — la détection est fausse (inventée par le serveur). Ce qu'on
- * regarde ici, c'est que la chaîne tient et combien elle coûte en latence.
+ * Milestone 1 — the detection is fake (made up by the server). What we watch
+ * here is that the chain holds, and what it costs in latency.
  */
 
 import { CameraView } from '../components/CameraView'

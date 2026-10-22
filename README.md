@@ -1,76 +1,79 @@
 # temoin-poc-ball-tracking
 
-POC d'exploration pour la détection et le suivi de la balle de tennis, dans le cadre du
-projet **Témoin**. Voir `CLAUDE.md` pour le contexte complet du projet.
+Exploration POC for tennis ball detection and tracking, part of the **Témoin**
+project. See `CLAUDE.md` for the full project context (in French).
 
-## Où on en est
+> Code and documentation are in English; everything displayed in the app is in French.
 
-**Jalon 1 — la plomberie, avec une fausse détection.**
+## Where we are
 
-L'application tourne de bout en bout : la caméra s'ouvre, les images partent au serveur,
-les détections reviennent et sont dessinées en direct. Mais **la détection est inventée** :
-le serveur ne charge aucun modèle et ne regarde même pas l'image. Le but de ce jalon est
-de mesurer ce que coûte l'aller-retour, avant d'avoir un modèle.
+**Milestone 1 — the plumbing, with a fake detector.**
 
-| Onglet | État |
+The app runs end to end: the camera opens, frames go to the server, detections come
+back and are drawn live. But **the detection is made up**: the server loads no model
+and does not even look at the image. The point of this milestone is to measure what
+the round trip costs, before having a model at all.
+
+| Tab | State |
 |---|---|
-| **Camera** | vivant — webcam, trajectoire dessinée, métriques de performance |
-| **Replay** | coquille — structure posée, rien de branché (jalon 3) |
-| **Training** | coquille — réglages affichés mais désactivés (jalon 4) |
+| **Camera** | live — webcam, trajectory drawn, performance figures |
+| **Replay** | shell — structure in place, nothing wired (milestone 3) |
+| **Training** | shell — settings shown but disabled (milestone 4) |
 
-Jalon 2 : remplacer `backend/detection/fake.py` par un vrai YOLO pré-entraîné, et voir ce
-que le décodage de l'image et l'inférence ajoutent à la latence mesurée ici.
+Milestone 2: replace `backend/detection/fake.py` with a real pre-trained YOLO, and see
+what image decoding and inference add to the latency measured here.
 
-## Lancer le projet
+## Running it
 
-Deux terminaux.
+Two terminals.
 
 ```bash
-# terminal 1 — le serveur
+# terminal 1 — the server
 cd backend
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-> **Python 3.12**, pas plus récent : `pydantic-core` n'a pas encore de wheel pour 3.14
-> (il tente de compiler du Rust), et au jalon 2 Ultralytics/PyTorch seront aussi plus
-> sûrs en 3.12.
+> **Python 3.12**, not newer: `pydantic-core` has no wheel for 3.14 yet (it falls back
+> to building Rust and fails), and in milestone 2 Ultralytics/PyTorch will also be
+> safer on 3.12.
 
 ```bash
-# terminal 2 — le front
+# terminal 2 — the frontend
 cd frontend
 npm install
 npm run dev
 ```
 
-Puis `http://localhost:5173`, onglet **Camera**, bouton « Démarrer la caméra ».
+Then open `http://localhost:5173`, **Camera** tab, "Démarrer la caméra".
 
-## Comment c'est branché
+## How it is wired
 
 ```
-caméra → <video> → canvas caché (réduit à 640px) → JPEG base64
-      → WebSocket ws://localhost:8000/ws/detect
-      → fake.detect()  ← le seul endroit à remplacer au jalon 2
-      → DetectResponse → canvas superposé (balle + trajectoire)
+camera → <video> → hidden canvas (scaled to 640px) → base64 JPEG
+       → WebSocket ws://localhost:8000/ws/detect
+       → fake.detect()  ← the only place to replace in milestone 2
+       → DetectResponse → overlay canvas (ball + trajectory)
 ```
 
-Le format des données est défini **deux fois, en miroir** :
-`backend/schemas.py` et `frontend/src/lib/types.ts`. Si tu changes l'un, change l'autre.
+The data format is defined **twice, as mirrors**: `backend/schemas.py` and
+`frontend/src/lib/types.ts`. Change one, change the other.
 
-Quelques réglages, dans `frontend/src/lib/useBallTracking.ts` :
+A few knobs, in `frontend/src/lib/useBallTracking.ts`:
 
-- `CAPTURE_WIDTH` (640) — largeur d'envoi
-- `TARGET_FPS` (15) — cadence visée ; le budget par image est de 1000/TARGET_FPS ms
-- une image n'est envoyée que si la réponse de la précédente est revenue, pour ne pas
-  accumuler de retard et fausser la latence mesurée
+- `CAPTURE_WIDTH` (640) — the width frames are sent at
+- `TARGET_FPS` (15) — target frame rate; the per-frame budget is 1000/TARGET_FPS ms
+- a frame is only sent once the previous answer is back, so lag does not pile up and
+  skew the measured latency
 
-Et dans `backend/detection/fake.py` :
+And in `backend/detection/fake.py`:
 
-- `MISS_RATE` (0.1) — une image sur dix sans balle, exprès, pour que le front gère les
-  trous dès maintenant (ce sera le vrai problème du suivi : interpolation, Kalman)
+- `MISS_RATE` (0.1) — one frame in ten with no ball, on purpose, so the frontend
+  handles gaps from the start (gaps being the real tracking problem: interpolation,
+  Kalman)
 
-## Données
+## Data
 
-Rien de versionné : `data/`, `models/` et `outputs/` sont dans le `.gitignore`
-(droit à l'image, poids des fichiers). Il n'y a pas encore de vidéo de test.
+Nothing is versioned: `data/`, `models/` and `outputs/` are in `.gitignore` (image
+rights, file sizes). There is no test video yet.

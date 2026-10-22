@@ -1,4 +1,4 @@
-/** La barre des trois onglets. Pas de routeur : trois onglets ne le justifient pas. */
+/** The tab bar. No router: three tabs do not justify one. */
 
 import { TABS, type Tab } from '../lib/tabs'
 

@@ -1,13 +1,13 @@
 /**
- * Onglet Training : l'entraînement des modèles.
+ * Training tab: model training.
  *
- * Jalon 1 — coquille. Les réglages sont affichés mais désactivés : il n'y a
- * ni jeu de données ni Ultralytics installé.
+ * Milestone 1 — a shell. The settings are shown but disabled: there is no
+ * dataset and no Ultralytics installed.
  */
 
 import { ComingSoon } from '../components/ComingSoon'
 
-/** Les réglages principaux listés dans le CLAUDE.md. */
+/** The main settings listed in CLAUDE.md. */
 const SETTINGS = [
   { label: 'Modèle de départ', value: 'yolo11n.pt' },
   { label: "Nombre d'époques", value: '50' },
@@ -43,7 +43,7 @@ export function TrainingTab() {
         Lancer l'entraînement
       </button>
 
-      {/* Emplacement des courbes */}
+      {/* Where the training curves will go */}
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-slate-300">
           Courbes d'entraînement

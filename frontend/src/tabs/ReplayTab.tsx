@@ -1,8 +1,8 @@
 /**
- * Onglet Replay : l'analyse d'une vidéo.
+ * Replay tab: video analysis.
  *
- * Jalon 1 — coquille. La structure est posée (dépôt de vidéo, lecteur,
- * timeline) mais rien n'est branché.
+ * Milestone 1 — a shell. The structure is in place (video drop zone, player,
+ * timeline) but nothing is wired up.
  */
 
 import { ComingSoon } from '../components/ComingSoon'
@@ -15,17 +15,17 @@ export function ReplayTab() {
         frappes, rebonds et fins de point sur la timeline.
       </ComingSoon>
 
-      {/* Zone de dépôt, inerte */}
+      {/* Drop zone, inert */}
       <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed border-slate-800 text-sm text-slate-500">
         Déposer une vidéo de point ici
       </div>
 
-      {/* Lecteur vide */}
+      {/* Empty player */}
       <div className="flex h-64 items-center justify-center rounded-lg border border-slate-800 bg-black text-sm text-slate-600">
         Pas de vidéo chargée
       </div>
 
-      {/* Timeline vide : la barre et ses graduations, sans événements */}
+      {/* Empty timeline: the bar and its ticks, with no events */}
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-slate-300">Timeline</h3>
         <div className="relative h-10 rounded-md border border-slate-800 bg-slate-900/60">

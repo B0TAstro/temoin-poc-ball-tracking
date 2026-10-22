@@ -1,9 +1,9 @@
 /**
- * Connexion WebSocket au serveur de détection.
+ * WebSocket connection to the detection server.
  *
- * Règle importante : on n'envoie pas l'image suivante tant que la précédente
- * n'est pas revenue. Sinon on accumule du retard et la latence mesurée ne veut
- * plus rien dire.
+ * Important rule: we do not send the next frame until the previous one has
+ * come back. Otherwise we pile up lag and the measured latency stops meaning
+ * anything.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -14,7 +14,7 @@ const WS_URL = 'ws://localhost:8000/ws/detect'
 const RECONNECT_DELAY_MS = 2000
 
 type Options = {
-  /** Appelé à chaque réponse du serveur. */
+  /** Called on every answer from the server. */
   onDetection: (response: DetectResponse, roundTripMs: number) => void
 }
 
@@ -22,11 +22,11 @@ export function useDetectionSocket({ onDetection }: Options) {
   const [status, setStatus] = useState<SocketStatus>('connecting')
   const socketRef = useRef<WebSocket | null>(null)
   const reconnectRef = useRef<number | null>(null)
-  // true dès qu'une image est partie, false quand sa réponse est revenue.
+  // true as soon as a frame is out, false when its answer is back.
   const waitingRef = useRef(false)
-  // On garde le callback dans une ref pour ne pas reconnecter à chaque rendu.
-  // L'écriture se fait dans un effet : toucher une ref pendant le rendu est
-  // déconseillé, et l'effet passe bien avant la première réponse du serveur.
+  // The callback lives in a ref so we do not reconnect on every render.
+  // Writing it happens in an effect: touching a ref during render is
+  // discouraged, and the effect runs well before the first server answer.
   const onDetectionRef = useRef(onDetection)
   useEffect(() => {
     onDetectionRef.current = onDetection
@@ -44,7 +44,7 @@ export function useDetectionSocket({ onDetection }: Options) {
 
       socket.onmessage = (event) => {
         const response: DetectResponse = JSON.parse(event.data)
-        // L'aller-retour complet : le serveur nous a renvoyé notre horodatage.
+        // The full round trip: the server echoed our own timestamp back.
         const roundTripMs = performance.now() - response.sent_at
         waitingRef.current = false
         onDetectionRef.current(response, roundTripMs)
@@ -53,13 +53,13 @@ export function useDetectionSocket({ onDetection }: Options) {
       socket.onclose = () => {
         setStatus('closed')
         waitingRef.current = false
-        // Le serveur est tombé : on retente, sans faire planter la caméra.
+        // The server went down: retry, without breaking the camera.
         if (!closedByUs) {
           reconnectRef.current = window.setTimeout(connect, RECONNECT_DELAY_MS)
         }
       }
 
-      // onerror est toujours suivi de onclose : rien à faire de plus ici.
+      // onerror is always followed by onclose: nothing more to do here.
       socket.onerror = () => socket.close()
     }
 
@@ -72,7 +72,7 @@ export function useDetectionSocket({ onDetection }: Options) {
     }
   }, [])
 
-  /** Envoie une image, sauf si on attend encore la réponse de la précédente. */
+  /** Send a frame, unless we are still waiting for the previous answer. */
   const send = useCallback((request: Omit<DetectRequest, 'sent_at'>) => {
     const socket = socketRef.current
     if (!socket || socket.readyState !== WebSocket.OPEN) return false

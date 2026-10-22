@@ -1,8 +1,8 @@
 /**
- * Le panneau de performances de l'onglet Camera.
+ * The performance panel of the Camera tab.
  *
- * C'est le résultat du jalon 1 : la latence de l'aller-retour. À 15 images par
- * seconde on dispose de 66 ms par image, donc on surligne en rouge au-delà.
+ * This is the outcome of milestone 1: the round trip latency. At 15 frames per
+ * second we have 66 ms per frame, so anything above that is flagged in red.
  */
 
 import type { Metrics, SocketStatus } from '../lib/types'
@@ -13,7 +13,7 @@ type Props = {
   targetFps: number
 }
 
-/** Le budget par image, en ms, pour la cadence visée. */
+/** The per-frame budget, in ms, for the target frame rate. */
 function budgetMs(targetFps: number) {
   return 1000 / targetFps
 }

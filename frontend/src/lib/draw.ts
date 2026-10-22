@@ -1,43 +1,43 @@
 /**
- * Dessin de la balle et de sa trajectoire dans le canvas superposé à la vidéo.
+ * Drawing the ball and its trajectory on the canvas overlaid on the video.
  *
- * Le canvas a exactement les mêmes dimensions que l'image envoyée au serveur,
- * donc les coordonnées reçues s'utilisent telles quelles, sans conversion.
+ * The canvas has exactly the same dimensions as the frame sent to the server,
+ * so the coordinates we get back are used as is, with no conversion.
  */
 
 import type { BallDetection } from './types'
 
-/** Une position de la trajectoire. `null` = image où la balle n'a pas été vue. */
+/** One point of the trail. `null` = a frame where the ball was not seen. */
 export type TrailPoint = BallDetection | null
 
-/** Combien de positions passées on garde pour dessiner la trajectoire. */
+/** How many past positions we keep to draw the trajectory. */
 export const TRAIL_LENGTH = 30
 
-const BALL_COLOR = '#d9f99d' // vert-jaune, comme une balle de tennis
+const BALL_COLOR = '#d9f99d' // yellow-green, like a tennis ball
 const TRAIL_COLOR = '217, 249, 157'
 
-/** Efface tout le canvas. */
+/** Wipe the whole canvas. */
 export function clear(ctx: CanvasRenderingContext2D) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 }
 
 /**
- * Dessine la trajectoire puis la balle courante.
+ * Draw the trajectory, then the current ball.
  *
- * La trajectoire est une suite de segments : chaque `null` coupe le trait,
- * pour qu'on voie à l'œil les images où la détection a échoué.
+ * The trajectory is a run of segments: every `null` breaks the line, so the
+ * frames where detection failed are visible at a glance.
  */
 export function drawTrack(ctx: CanvasRenderingContext2D, trail: TrailPoint[]) {
   clear(ctx)
 
-  // --- La trajectoire, du plus ancien au plus récent ---
+  // --- The trajectory, oldest to newest ---
   for (let i = 1; i < trail.length; i++) {
     const from = trail[i - 1]
     const to = trail[i]
-    // Un trou d'un côté ou de l'autre : pas de segment, le trait se coupe.
+    // A gap on either side: no segment, the line breaks.
     if (!from || !to) continue
 
-    // Plus le segment est récent, plus il est opaque et épais.
+    // The more recent the segment, the more opaque and the thicker.
     const age = i / trail.length
     ctx.strokeStyle = `rgba(${TRAIL_COLOR}, ${0.15 + age * 0.65})`
     ctx.lineWidth = 1 + age * 2
@@ -48,7 +48,7 @@ export function drawTrack(ctx: CanvasRenderingContext2D, trail: TrailPoint[]) {
     ctx.stroke()
   }
 
-  // --- La balle courante ---
+  // --- The current ball ---
   const current = trail[trail.length - 1]
   if (!current) return
 
@@ -57,14 +57,14 @@ export function drawTrack(ctx: CanvasRenderingContext2D, trail: TrailPoint[]) {
   ctx.fillStyle = BALL_COLOR
   ctx.fill()
 
-  // Un cercle autour, dont l'opacité suit la confiance de la détection.
+  // A ring around it, its opacity following the detection confidence.
   ctx.beginPath()
   ctx.arc(current.x, current.y, 13, 0, Math.PI * 2)
   ctx.strokeStyle = `rgba(${TRAIL_COLOR}, ${current.conf})`
   ctx.lineWidth = 2
   ctx.stroke()
 
-  // La confiance en chiffres, juste à côté.
+  // The confidence as a number, right next to it.
   ctx.font = '12px monospace'
   ctx.fillStyle = BALL_COLOR
   ctx.fillText(current.conf.toFixed(2), current.x + 18, current.y + 4)

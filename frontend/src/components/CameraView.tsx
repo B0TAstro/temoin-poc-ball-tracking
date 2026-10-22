@@ -1,8 +1,8 @@
 /**
- * L'image de la caméra, avec le canvas de dessin superposé par-dessus.
+ * The camera picture, with the drawing canvas laid over it.
  *
- * Ce composant n'a aucune logique : il reçoit les refs et les boutons de
- * `useBallTracking` et se contente de les placer à l'écran.
+ * This component holds no logic: it takes the refs and handlers from
+ * `useBallTracking` and just places them on screen.
  */
 
 import type { RefObject } from 'react'
@@ -28,14 +28,14 @@ export function CameraView({
 }: Props) {
   return (
     <div className="space-y-3">
-      {/* La vidéo et le canvas se superposent exactement, au pixel près. */}
+      {/* Video and canvas overlap exactly, pixel for pixel. */}
       <div className="relative overflow-hidden rounded-lg border border-slate-800 bg-black">
         <video
           ref={videoRef}
           playsInline
           muted
           className="block w-full"
-          // Hauteur réservée tant que la caméra n'est pas lancée.
+          // Reserve some height until the camera starts.
           style={{ minHeight: isRunning ? undefined : 320 }}
         />
         <canvas
@@ -49,7 +49,7 @@ export function CameraView({
         )}
       </div>
 
-      {/* Canvas de travail : sert à réduire l'image avant l'envoi, jamais affiché. */}
+      {/* Working canvas: scales the frame down before sending, never displayed. */}
       <canvas ref={captureCanvasRef} className="hidden" />
 
       <div className="flex items-center gap-3">

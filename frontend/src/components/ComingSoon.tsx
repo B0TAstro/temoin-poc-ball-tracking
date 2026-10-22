@@ -1,4 +1,4 @@
-/** Encart « à venir » : pour qu'on ne croie pas qu'un onglet est cassé. */
+/** "Coming soon" notice, so a tab does not look broken. */
 
 type Props = {
   milestone: string

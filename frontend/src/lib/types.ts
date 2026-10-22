@@ -1,28 +1,28 @@
 /**
- * Miroir TypeScript de `backend/schemas.py`.
- * Si tu changes un type là-bas, change-le ici aussi.
+ * TypeScript mirror of `backend/schemas.py`.
+ * Change a type there, change it here too.
  */
 
-/** Où se trouve la balle sur une image donnée. */
+/** Where the ball is on a given frame. */
 export type BallDetection = {
   frame: number
-  /** temps en secondes depuis le début */
+  /** seconds since the start */
   t: number
   x: number
   y: number
-  /** entre 0 et 1 */
+  /** between 0 and 1 */
   conf: number
-  /** true si la position est devinée, pas détectée */
+  /** true when the position is guessed, not detected */
   interpolated: boolean
 }
 
-/** Une ligne du court, repérée par ses extrémités. */
+/** A court line, described by its endpoints. */
 export type CourtLine = {
   name: string
   points: [number, number][]
 }
 
-/** Un moment repéré dans le point. */
+/** A moment spotted in the point. */
 export type Event = {
   type: 'hit' | 'bounce' | 'point_end'
   frame: number
@@ -32,7 +32,7 @@ export type Event = {
   conf: number
 }
 
-/** Le résultat complet de l'analyse d'une vidéo (onglet Replay, plus tard). */
+/** The full result of analysing one video (Replay tab, later on). */
 export type Timeline = {
   video: string
   fps: number
@@ -42,21 +42,21 @@ export type Timeline = {
   events: Event[]
 }
 
-/** Une image envoyée au serveur. */
+/** One camera frame sent to the server. */
 export type DetectRequest = {
   frame_id: number
-  /** JPEG encodé en base64 */
+  /** JPEG encoded as base64 */
   image: string
   width: number
   height: number
-  /** performance.now() au moment de l'envoi */
+  /** performance.now() at send time */
   sent_at: number
 }
 
-/** La réponse du serveur pour une image. */
+/** The server's answer for one frame. */
 export type DetectResponse = {
   frame_id: number
-  /** null = balle pas vue sur cette image */
+  /** null = ball not seen on this frame */
   detection: BallDetection | null
   inference_ms: number
   sent_at: number
@@ -64,21 +64,21 @@ export type DetectResponse = {
 
 export type SocketStatus = 'connecting' | 'open' | 'closed'
 
-/** Ce qu'on affiche dans le panneau de performances de l'onglet Camera. */
+/** What the Camera tab shows in its performance panel. */
 export type Metrics = {
-  /** images par seconde capturées depuis la caméra et envoyées */
+  /** frames per second captured from the camera and sent */
   capturedFps: number
-  /** images par seconde pour lesquelles une réponse est revenue */
+  /** frames per second for which an answer came back */
   processedFps: number
-  /** aller-retour complet front -> serveur -> front, en ms */
+  /** full round trip frontend -> server -> frontend, in ms */
   roundTripMs: number
-  /** temps passé côté serveur dans la détection, en ms */
+  /** time spent in detection server side, in ms */
   inferenceMs: number
-  /** confiance de la dernière détection, null si la balle n'a pas été vue */
+  /** confidence of the last detection, null when the ball was not seen */
   lastConf: number | null
-  /** nombre d'images où la balle n'a pas été vue */
+  /** how many frames had no ball */
   missedFrames: number
-  /** nombre total d'images traitées */
+  /** how many frames were processed in total */
   totalFrames: number
 }
 

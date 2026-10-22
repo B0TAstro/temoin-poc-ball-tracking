@@ -1,4 +1,4 @@
-# Données et poids : jamais versionnés (droit à l'image, poids des fichiers)
+# Data and weights: never versioned (image rights, file sizes)
 data/
 models/
 outputs/
@@ -12,6 +12,6 @@ __pycache__/
 node_modules/
 frontend/dist/
 
-# Divers
+# Misc
 .DS_Store
 .env

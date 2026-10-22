@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Fond sombre par défaut : on regarde surtout des images de caméra. */
+/* Dark background by default: we mostly look at camera frames. */
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
 }
