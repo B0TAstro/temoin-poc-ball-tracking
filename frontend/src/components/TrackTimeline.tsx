@@ -1,30 +1,49 @@
 /**
  * The timeline bar under the player.
  *
- * It shows, frame by frame, whether the ball was found — which is exactly the
- * question milestone 3 is asking. The gaps are the interesting part: they are
- * what interpolation and tracking will have to fill in later.
+ * Three things at once, all of them answering "can we trust this?":
  *
- * Hits, bounces and end of point come in milestone 4; the bar is already the
- * place they will be drawn.
+ * - where the ball was really detected (bright), and where its position was
+ *   filled in between two detections (faint). Guessed is never drawn like
+ *   measured.
+ * - where the trajectory turns: bounces and hits, read off the path.
+ * - where you are in the clip.
+ *
+ * This is the bar the VAR button will pre-highlight: the point of the whole
+ * project is to land the viewer on the disputed moment.
  */
 
 import { useEffect, useRef } from 'react'
 
-import type { BallDetection } from '../lib/types'
+import type { BallDetection, Event } from '../lib/types'
 
 type Props = {
   /** frame number -> detection, for O(1) lookup */
   track: Map<number, BallDetection>
+  events: Event[]
   totalFrames: number
   currentFrame: number
   /** Click anywhere on the bar to jump there. */
   onSeek: (frame: number) => void
 }
 
-const HEIGHT = 44
+const HEIGHT = 56
+const BAND_HEIGHT = 30
 
-export function TrackTimeline({ track, totalFrames, currentFrame, onSeek }: Props) {
+/** One colour per event type, matching the legend in the tab. */
+const EVENT_COLORS: Record<Event['type'], string> = {
+  bounce: '#fb7185', // rose
+  hit: '#fcd34d', // amber
+  point_end: '#a5b4fc', // indigo
+}
+
+export function TrackTimeline({
+  track,
+  events,
+  totalFrames,
+  currentFrame,
+  onSeek,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
@@ -41,23 +60,42 @@ export function TrackTimeline({ track, totalFrames, currentFrame, onSeek }: Prop
 
     // Background: the whole clip, as "nothing found".
     ctx.fillStyle = '#1e293b'
-    ctx.fillRect(0, 0, width, HEIGHT)
+    ctx.fillRect(0, 0, width, BAND_HEIGHT)
 
-    // One mark per frame where the ball was found. With more frames than
-    // pixels, marks overlap and read as a solid band — which is what we want.
+    // One mark per frame of the track. With more frames than pixels, marks
+    // overlap and read as a solid band — which is what we want.
     const perFrame = Math.max(width / totalFrames, 1)
     for (const detection of track.values()) {
       const x = (detection.frame / totalFrames) * width
-      // Opacity follows confidence, so a weak run is visibly weaker.
-      ctx.fillStyle = `rgba(217, 249, 157, ${0.35 + detection.conf * 0.65})`
-      ctx.fillRect(x, 0, perFrame, HEIGHT)
+      if (detection.interpolated) {
+        // Guessed: faint, and only half the height, so the eye separates it
+        // from a real detection without having to read a legend.
+        ctx.fillStyle = 'rgba(217, 249, 157, 0.25)'
+        ctx.fillRect(x, BAND_HEIGHT / 2, perFrame, BAND_HEIGHT / 2)
+      } else {
+        // Opacity follows confidence, so a weak run is visibly weaker.
+        ctx.fillStyle = `rgba(217, 249, 157, ${0.35 + detection.conf * 0.65})`
+        ctx.fillRect(x, 0, perFrame, BAND_HEIGHT)
+      }
     }
 
-    // The playhead.
+    // Events, as pins hanging under the band.
+    for (const event of events) {
+      const x = (event.frame / totalFrames) * width
+      ctx.fillStyle = EVENT_COLORS[event.type]
+      ctx.globalAlpha = 0.45 + event.conf * 0.55
+      ctx.fillRect(x - 1, BAND_HEIGHT, 2, HEIGHT - BAND_HEIGHT - 6)
+      ctx.beginPath()
+      ctx.arc(x, HEIGHT - 5, 4, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+
+    // The playhead, over everything.
     const cursorX = (currentFrame / totalFrames) * width
     ctx.fillStyle = '#f8fafc'
     ctx.fillRect(cursorX - 1, 0, 2, HEIGHT)
-  }, [track, totalFrames, currentFrame])
+  }, [track, events, totalFrames, currentFrame])
 
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current

@@ -18,7 +18,7 @@ export default function App() {
           Témoin — suivi de balle
         </h1>
         <p className="text-xs text-slate-500">
-          POC d'exploration · jalon 3 : analyse d'une vidéo, balle suivie image par image
+          POC d'exploration · jalon 4 : trajectoire nettoyée, rebonds et frappes
         </p>
       </header>
 

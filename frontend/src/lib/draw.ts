@@ -39,18 +39,35 @@ export function drawTrack(ctx: CanvasRenderingContext2D, trail: TrailPoint[]) {
 
     // The more recent the segment, the more opaque and the thicker.
     const age = i / trail.length
-    ctx.strokeStyle = `rgba(${TRAIL_COLOR}, ${0.15 + age * 0.65})`
-    ctx.lineWidth = 1 + age * 2
+    // An interpolated position is a guess: draw it thin and dashed so it never
+    // reads as a measurement.
+    const guessed = to.interpolated
+    ctx.strokeStyle = `rgba(${TRAIL_COLOR}, ${(0.15 + age * 0.65) * (guessed ? 0.5 : 1)})`
+    ctx.lineWidth = guessed ? 1 : 1 + age * 2
+    ctx.setLineDash(guessed ? [4, 4] : [])
     ctx.lineCap = 'round'
     ctx.beginPath()
     ctx.moveTo(from.x, from.y)
     ctx.lineTo(to.x, to.y)
     ctx.stroke()
+    ctx.setLineDash([])
   }
 
   // --- The current ball ---
   const current = trail[trail.length - 1]
   if (!current) return
+
+  if (current.interpolated) {
+    // Guessed: an empty circle, so it is obviously not a detection.
+    ctx.beginPath()
+    ctx.arc(current.x, current.y, 6, 0, Math.PI * 2)
+    ctx.strokeStyle = `rgba(${TRAIL_COLOR}, 0.7)`
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([3, 3])
+    ctx.stroke()
+    ctx.setLineDash([])
+    return
+  }
 
   ctx.beginPath()
   ctx.arc(current.x, current.y, 7, 0, Math.PI * 2)

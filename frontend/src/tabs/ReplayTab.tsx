@@ -1,18 +1,19 @@
 /**
  * Replay tab: analysing a video.
  *
- * Milestone 3 — pick or drop a video, run the detector over every frame, then
- * replay it in slow motion with the trajectory drawn on top and a timeline
- * showing where the ball was found.
+ * Pick or drop a video, run the detector over every frame, then replay it in
+ * slow motion with the trajectory drawn on top, a timeline showing where the
+ * ball was really found, and the bounces and hits read off the path.
  *
- * The timeline has no hits, bounces or end of point yet: those come from
- * analysing the trajectory, which is milestone 4.
+ * What is still missing to answer "in or out": the court lines and the
+ * homography that projects a bounce onto the real court. That is milestone 5.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AnalysisSettings } from '../components/AnalysisSettings'
 import { ComingSoon } from '../components/ComingSoon'
+import { EventList } from '../components/EventList'
 import { TrackTimeline } from '../components/TrackTimeline'
 import { VideoPicker } from '../components/VideoPicker'
 import { VideoPlayer } from '../components/VideoPlayer'
@@ -145,18 +146,16 @@ export function ReplayTab() {
               {[
                 ['Modèle', `${state.result.detector} @ ${state.result.imgsz} px`],
                 [
-                  'Balle vue',
-                  `${state.result.frames_with_ball} / ${state.result.frames_read} images`,
+                  'Candidats proposés',
+                  `${state.result.frames_with_candidate} / ${state.result.frames_read}`,
                 ],
                 [
-                  'Taux',
-                  `${((100 * state.result.frames_with_ball) / Math.max(state.result.frames_read, 1)).toFixed(1)} %`,
+                  'Retenus comme balle',
+                  `${state.result.frames_with_ball} (${((100 * state.result.frames_with_ball) / Math.max(state.result.frames_read, 1)).toFixed(0)} %)`,
                 ],
+                ['Interpolés', `${state.result.frames_interpolated}`],
+                ['Runs', `${state.result.segments}`],
                 ['Durée', `${state.result.elapsed_s} s`],
-                [
-                  'Par image',
-                  `${((1000 * state.result.elapsed_s) / Math.max(state.result.frames_read, 1)).toFixed(0)} ms`,
-                ],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-3">
                   <dt className="text-slate-400">{label}</dt>
@@ -164,14 +163,48 @@ export function ReplayTab() {
                 </div>
               ))}
             </dl>
+
+            {state.result.rejected_static.length > 0 && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-2 py-1.5">
+                <p className="text-[11px] font-semibold text-amber-200/90">
+                  Rejeté car immobile
+                </p>
+                {state.result.rejected_static.map((object) => (
+                  <p
+                    key={`${object.x}-${object.y}`}
+                    className="font-mono text-[11px] text-amber-200/60"
+                  >
+                    ({object.x.toFixed(0)}, {object.y.toFixed(0)}) — {object.frames}{' '}
+                    images
+                  </p>
+                ))}
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                  Une balle ne reste jamais immobile. Sur les clips de test,
+                  c'est un panneau publicitaire jaune que le modèle prenait pour
+                  une balle sur 100 % des images.
+                </p>
+              </div>
+            )}
+
             <p className="pt-1 text-[11px] leading-relaxed text-slate-500">
-              Un taux élevé veut dire qu'une « sports ball » a été trouvée sur
-              presque chaque image — pas forcément la bonne. Regarde la
-              trajectoire : si elle saute d'un coin à l'autre, le modèle suit
-              autre chose que la balle.
+              « Candidats proposés » est le chiffre flatteur, « retenus comme
+              balle » l'honnête. Regarde quand même la trajectoire : c'est le
+              seul juge.
             </p>
           </section>
         )}
+
+        {timeline && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-200">Événements</h2>
+            <EventList
+              events={timeline.events}
+              currentFrame={player.currentFrame}
+              onSeek={player.seekToFrame}
+            />
+          </section>
+        )}
+
       </aside>
 
       <section className="space-y-4">
@@ -195,18 +228,22 @@ export function ReplayTab() {
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-semibold text-slate-300">Timeline</h3>
             <span className="text-[11px] text-slate-500">
-              clair = balle vue · sombre = rien trouvé · clic pour se déplacer
+              clair = balle détectée · pâle = interpolé ·{' '}
+              <span className="text-rose-400">rebond</span> ·{' '}
+              <span className="text-amber-300">frappe</span> ·{' '}
+              <span className="text-indigo-300">fin</span> · clic pour se déplacer
             </span>
           </div>
           <TrackTimeline
             track={player.track}
+            events={timeline?.events ?? []}
             totalFrames={player.totalFrames || (selectedInfo?.frames ?? 0)}
             currentFrame={player.currentFrame}
             onSeek={player.seekToFrame}
           />
-          <ComingSoon milestone="jalon 4">
-            Les frappes, rebonds et fins de point viendront se poser sur cette
-            barre, déduits de la trajectoire.
+          <ComingSoon milestone="jalon 5">
+            Les lignes du court et l'homographie, pour projeter un rebond sur le
+            plan du court et enfin répondre « dedans ou dehors ».
           </ComingSoon>
         </div>
       </section>

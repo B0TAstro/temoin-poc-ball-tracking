@@ -133,11 +133,27 @@ export type AnalyzeProgress = {
   detection: BallDetection | null
 }
 
+/** Something the tracking dropped because it never moved. */
+export type RejectedObject = {
+  x: number
+  y: number
+  frames: number
+}
+
 export type AnalyzeDone = {
   kind: 'done'
   timeline: Timeline
   frames_read: number
+  /** frames where the detector proposed anything — the flattering number */
+  frames_with_candidate: number
+  /** frames the tracking kept as really being the ball — the honest one */
   frames_with_ball: number
+  /** positions filled between two detections, guessed not measured */
+  frames_interpolated: number
+  /** how many separate runs of the ball the point was made of */
+  segments: number
+  /** what was dropped for standing still */
+  rejected_static: RejectedObject[]
   elapsed_s: number
   detector: string
   imgsz: number
