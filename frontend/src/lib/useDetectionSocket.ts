@@ -8,9 +8,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { WS_BASE } from './api'
 import type { DetectRequest, DetectResponse, SocketStatus } from './types'
 
-const WS_URL = 'ws://localhost:8000/ws/detect'
+const WS_URL = `${WS_BASE}/ws/detect`
 const RECONNECT_DELAY_MS = 2000
 
 type Options = {

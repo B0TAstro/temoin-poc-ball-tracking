@@ -102,3 +102,50 @@ export const EMPTY_METRICS: Metrics = {
   missedFrames: 0,
   totalFrames: 0,
 }
+
+// --- Replay tab ---
+
+/** One video available on the server, in `data/videos/`. */
+export type VideoInfo = {
+  name: string
+  size_bytes: number
+  fps: number
+  frames: number
+  width: number
+  height: number
+  duration_s: number
+}
+
+/** What we ask the server to analyse, and how. */
+export type AnalyzeRequest = {
+  video: string
+  /** null keeps whichever detector the server booted with */
+  detector: string | null
+  /** the size the model works at — the setting that matters most here */
+  imgsz: number
+}
+
+export type AnalyzeProgress = {
+  kind: 'progress'
+  frame: number
+  /** 0 when the file does not say how long it is */
+  total: number
+  detection: BallDetection | null
+}
+
+export type AnalyzeDone = {
+  kind: 'done'
+  timeline: Timeline
+  frames_read: number
+  frames_with_ball: number
+  elapsed_s: number
+  detector: string
+  imgsz: number
+}
+
+export type AnalyzeError = {
+  kind: 'error'
+  message: string
+}
+
+export type AnalyzeMessage = AnalyzeProgress | AnalyzeDone | AnalyzeError
